@@ -1,4 +1,4 @@
-package stream.examples;
+package io.confluent.examples.streams;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Serdes;
@@ -16,9 +16,10 @@ public class AnomalyDetectionLambdaExample {
         final Properties streamsConfiguration = new Properties();
         streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, "anomaly-detection-lambda-example");
         streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        streamsConfiguration.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        streamsConfiguration.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        streamsConfiguration.put(StreamsConfig.KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        streamsConfiguration.put(StreamsConfig.VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         streamsConfiguration.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 500);
+        streamsConfiguration.put(StreamsConfig.STATE_DIR_CONFIG, "/home/kamal/opensource/kafka_2.11-0.10.2.1/kafka-streams");
         streamsConfiguration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         KStreamBuilder builder = new KStreamBuilder();
@@ -29,10 +30,12 @@ public class AnomalyDetectionLambdaExample {
                 .count(TimeWindows.of(60 * 1000L), "UserCountStore")
                 .filter((windowedUserId, count) -> count >= 3);
 
-        anamalousUsers.toStream().map((windowedId, count) -> KeyValue.pair(windowedId.toString(), count)).to(Serdes.String(), Serdes.Long(), "AnomalousUsers");
+        anamalousUsers.toStream()
+                .filter((windowedId, count) -> count != null)
+                .map((windowedId, count) -> KeyValue.pair(windowedId.toString(), count))
+                .to(Serdes.String(), Serdes.Long(), "AnomalousUsers");
 
         final KafkaStreams streams = new KafkaStreams(builder, streamsConfiguration);
-        streams.cleanUp();
         streams.start();
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
     }
