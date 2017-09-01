@@ -39,6 +39,9 @@ public class MySerde<T extends Serializable> implements Serde<T> {
 
             @Override
             public T deserialize(String topic, byte[] bytes) {
+                if (bytes == null)
+                    return null;
+
                 return (T) SerializationUtils.deserialize(bytes);
             }
 
