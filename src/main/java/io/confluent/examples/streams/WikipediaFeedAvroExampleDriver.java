@@ -1,5 +1,6 @@
 package io.confluent.examples.streams;
 
+import io.confluent.examples.streams.pojo.WikiFeed;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -16,7 +17,7 @@ import java.util.stream.IntStream;
 
 public class WikipediaFeedAvroExampleDriver {
 
-    static final String bootstrapServers = "192.168.9.211:9092";
+    static final String bootstrapServers = "localhost:9092";
 
     static final String WIKIPEDIA_FEED = "WikipediaFeed";
     static final String WIKIPEDIA_STATS = "WikipediaStats";
@@ -35,25 +36,28 @@ public class WikipediaFeedAvroExampleDriver {
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "wikipedia-feed-example-consumer");
         consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        final KafkaConsumer<String, Long> consumer = new KafkaConsumer<>(consumerProps);
-        consumer.subscribe(Collections.singleton(WIKIPEDIA_STATS));
-        while (true) {
-            consumer.poll(Long.MAX_VALUE).forEach(record -> System.out.println(record.key() + "=" + record.value()));
+        try (KafkaConsumer<String, Long> consumer = new KafkaConsumer<>(consumerProps)) {
+            consumer.subscribe(Collections.singleton(WIKIPEDIA_STATS));
+            while (true) {
+                consumer.poll(Long.MAX_VALUE).forEach(record ->
+                        System.out.println(record.key() + "=" + record.value()));
+            }
         }
     }
 
     private static void produceInputs() {
         String[] users = new String[] {"alice", "bob", "christian", "damian", "eno", "ewen", "flurossis", "guozhwang"};
+        final Random random = new Random();
 
         Properties producerProps = new Properties();
         producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-
-        final Random random = new Random();
-        final KafkaProducer<String, WikiFeed> producer = new KafkaProducer<>(producerProps, new StringSerializer(), new MySerde<WikiFeed>().serializer());
-        IntStream.range(0, 100)
-                .mapToObj(val -> new WikiFeed(users[random.nextInt(users.length)], true, "content"))
-                .forEach(wikiFeed -> producer.send(new ProducerRecord<>(WIKIPEDIA_FEED, null, wikiFeed)));
-        producer.close();
+        try (KafkaProducer<String, WikiFeed> producer = new KafkaProducer<>(producerProps,
+                new StringSerializer(), new MySerde<WikiFeed>().serializer())) {
+            IntStream.range(0, 100).forEach(val -> {
+                final WikiFeed wikiFeed = new WikiFeed(users[random.nextInt(users.length)], true, "content");
+                producer.send(new ProducerRecord<>(WIKIPEDIA_FEED, null, wikiFeed));
+            });
+        }
     }
 
 }

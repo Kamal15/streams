@@ -1,4 +1,4 @@
-package io.confluent.examples.streams;
+package io.confluent.examples.streams.pojo;
 
 import java.io.Serializable;
 
