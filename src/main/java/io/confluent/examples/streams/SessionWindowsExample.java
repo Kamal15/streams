@@ -15,13 +15,14 @@ public class SessionWindowsExample {
 
     public static void main(String[] args) {
         final Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "session-windows-example");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "session-windows-app");
         props.put(StreamsConfig.CLIENT_ID_CONFIG, "session-windows-client");
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, SessionWindowsExampleDriver.bootstrapServers);
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, MySerde.class);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, "/home/kamal/opensource/kafka_2.11-0.11.0.0/streams-state-data");
+        props.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/streams-data");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0); // disable caching to see session merging
 
         final KStreamBuilder builder = new KStreamBuilder();
         final KStream<String, PlayEvent> playEvents = builder.stream(SessionWindowsExampleDriver.PLAY_EVENT_INPUT_TOPIC);

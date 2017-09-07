@@ -29,8 +29,10 @@ public class SessionWindowsExampleDriver {
 
     static final String bootstrapServers = "localhost:9092";
     static final Long INACTIVITY_GAP_MS = TimeUnit.MINUTES.toMillis(1);
+    private static final int NUM_RECORDS_SENT = 13;
 
-    static final Serde<Windowed<String>> windowedSerde = Serdes.serdeFrom(new WindowedSerializer<>(new StringSerializer()), new WindowedDeserializer<>(new StringDeserializer()));
+    static final Serde<Windowed<String>> windowedSerde = Serdes.serdeFrom(
+            new WindowedSerializer<>(new StringSerializer()), new WindowedDeserializer<>(new StringDeserializer()));
 
     public static void main(String[] args) {
         produceInputs();
@@ -67,14 +69,19 @@ public class SessionWindowsExampleDriver {
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "session-window-lambda-example-consumer");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        try (KafkaConsumer<Windowed<String>, Long> consumer = new KafkaConsumer<>(props, windowedSerde.deserializer(), new LongDeserializer())) {
+        try (KafkaConsumer<Windowed<String>, Long> consumer = new KafkaConsumer<>(props, windowedSerde.deserializer(),
+                new LongDeserializer())) {
             consumer.subscribe(Collections.singleton(PLAY_USER_COUNT_TOPIC));
-            final ConsumerRecords<Windowed<String>, Long> records = consumer.poll(Long.MAX_VALUE);
-            records.forEach(record -> {
-                final Windowed<String> windowed = record.key();
-                System.out.println(record.offset() + ", " + windowed.key() + ":" + record.value() + ", window : " +
-                        new Date(windowed.window().start()) + " - " + new Date(windowed.window().end()));
-            });
+            int received = 0;
+            while (received < NUM_RECORDS_SENT) {
+                final ConsumerRecords<Windowed<String>, Long> records = consumer.poll(Long.MAX_VALUE);
+                records.forEach(record -> {
+                    final Windowed<String> windowed = record.key();
+                    System.out.println(record.offset() + ", " + windowed.key() + ":" + record.value() + ", window : " +
+                            new Date(windowed.window().start()) + " - " + new Date(windowed.window().end()));
+                });
+                received += records.count();
+            }
         }
     }
 }
