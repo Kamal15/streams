@@ -27,7 +27,7 @@ public class PageViewRegionExample {
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, MySerde.class);
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 10 * 1000);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, "/home/kamal/opensource/kafka_2.11-0.11.0.0/streams-state-data");
+        props.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/streams-data");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         final KStreamBuilder builder = new KStreamBuilder();
@@ -35,12 +35,11 @@ public class PageViewRegionExample {
         final KStream<String, PageView> viewByUser = pageViewStream.map((nullKey, view) -> KeyValue.pair(view.getUser(), view));
 
         final KTable<String, UserProfile> userProfiles = builder.table(PageViewRegionExampleDriver.userProfilesTopic, "UserProfilesStore");
-        final KTable<String, String> userRegions = userProfiles.mapValues(profile -> profile.getRegion());
+        final KTable<String, String> userRegions = userProfiles.mapValues(UserProfile::getRegion);
 
-        final KTable<Windowed<String>, Long> viewsByRegion = viewByUser.leftJoin(userRegions, (view, region) -> {
-            PageViewRegion pvg = new PageViewRegion(view.getUser(), view.getPage(), region);
-            return pvg;
-        }).map((user, pvg) -> KeyValue.pair(pvg.getRegion(), pvg))
+        final KTable<Windowed<String>, Long> viewsByRegion = viewByUser.leftJoin(userRegions,
+                (view, region) -> new PageViewRegion(view.getUser(), view.getPage(), region))
+                .map((user, pvg) -> KeyValue.pair(pvg.getRegion(), pvg))
                 .groupByKey()
                 .count(TimeWindows.of(5 * 60 * 1000).advanceBy(60 * 1000), "GeoPageViewStore");
 

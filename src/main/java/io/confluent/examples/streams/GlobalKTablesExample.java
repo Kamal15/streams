@@ -37,10 +37,10 @@ public class GlobalKTablesExample {
 
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "global-tables-example");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "192.168.9.211:9092");
-        props.put(StreamsConfig.KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        props.put(StreamsConfig.VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        props.put(StreamsConfig.STATE_DIR_CONFIG, "/home/kamal/opensource/confluent-3.2.2/kafka-streams-data");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+        props.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/streams-data");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         final SpecificAvroSerde<Order> orderSerde = createSerde(false);
@@ -74,7 +74,7 @@ public class GlobalKTablesExample {
         private final Customer customer;
         private final Order order;
 
-        public CustomerOrder(Customer customer, Order order) {
+        private CustomerOrder(Customer customer, Order order) {
             this.customer = customer;
             this.order = order;
         }

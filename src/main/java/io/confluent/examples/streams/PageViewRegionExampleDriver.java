@@ -26,7 +26,7 @@ public class PageViewRegionExampleDriver {
     static final String pageViewsByRegion = "PageViewsByRegion";
 
     public static void main(String[] args) {
-       // produceInputs();
+        produceInputs();
         consumeOutputs();
     }
 

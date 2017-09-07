@@ -35,7 +35,7 @@ public class GlobalKTablesExampleDriver {
     private static final int RECORDS_TO_GENERATE = 100;
 
     public static void main(String[] args) {
-        String bootstrapServers = "192.168.9.211:9092";
+        String bootstrapServers = "localhost:9092";
         String schemaRegistryUrl = "http://localhost:8081";
 
         generateCustomers(bootstrapServers, schemaRegistryUrl, RECORDS_TO_GENERATE);
@@ -55,75 +55,65 @@ public class GlobalKTablesExampleDriver {
         consumerProps.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
         consumerProps.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, true);
 
-        final KafkaConsumer<Long, EnricherOrder> consumer = new KafkaConsumer<>(consumerProps);
-        consumer.subscribe(Collections.singleton(GlobalKTablesExample.ENRICHED_ORDER_TOPIC));
-        int received = 0;
-        while (received < expected) {
-            final ConsumerRecords<Long, EnricherOrder> records = consumer.poll(Long.MAX_VALUE);
-            records.forEach(record ->
-                System.out.println("Key : " + record.key() + ", Value : " + record.value())
-            );
+        try (KafkaConsumer<Long, EnricherOrder> consumer = new KafkaConsumer<>(consumerProps)) {
+            consumer.subscribe(Collections.singleton(GlobalKTablesExample.ENRICHED_ORDER_TOPIC));
+            int received = 0;
+            while (received < expected) {
+                final ConsumerRecords<Long, EnricherOrder> records = consumer.poll(Long.MAX_VALUE);
+                records.forEach(record ->
+                        System.out.println("Key : " + record.key() + ", Value : " + record.value())
+                );
+            }
         }
-        consumer.close();
     }
 
-    private static List<Order> generateOrders(String bootstrapServers, String schemaRegistryUrl, int numCustomers, int numProducts, int count) {
-
+    private static void generateOrders(String bootstrapServers, String schemaRegistryUrl, int numCustomers,
+                                              int numProducts, int count) {
         final Properties producerProperties = new Properties();
         producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
         final SpecificAvroSerde<Order> ordersSerde = createSerde(schemaRegistryUrl);
-        final KafkaProducer<Long, Order> producer =
-                new KafkaProducer<>(producerProperties, Serdes.Long().serializer(), ordersSerde.serializer());
-
-        final List<Order> allOrders = new ArrayList<>();
-        for(long i = 0; i < count; i++) {
-            final long customerId = RANDOM.nextInt(numCustomers);
-            final long productId = RANDOM.nextInt(numProducts);
-            final Order order = new Order(customerId, productId, RANDOM.nextLong());
-            allOrders.add(order);
-            producer.send(new ProducerRecord<>(ORDER_TOPIC, i, order));
+        try (KafkaProducer<Long, Order> producer = new KafkaProducer<>(producerProperties, Serdes.Long().serializer(),
+                ordersSerde.serializer())) {
+            for (long i = 0; i < count; i++) {
+                final long customerId = RANDOM.nextInt(numCustomers);
+                final long productId = RANDOM.nextInt(numProducts);
+                final Order order = new Order(customerId, productId, RANDOM.nextLong());
+                producer.send(new ProducerRecord<>(ORDER_TOPIC, i, order));
+            }
         }
-        producer.close();
-        return allOrders;
     }
 
-    private static List<Product> generateProducts(String bootstrapServers, String schemaRegistryUrl, int count) {
+    private static void generateProducts(String bootstrapServers, String schemaRegistryUrl, int count) {
         final Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
         final SpecificAvroSerde<Product> productSerde = createSerde(schemaRegistryUrl);
-        final KafkaProducer<Long, Product> producer = new KafkaProducer<>(properties, Serdes.Long().serializer(), productSerde.serializer());
-
-        List<Product> allproducts = new ArrayList<>();
-        for (long i=0; i<count; i++) {
-            final Product product = new Product(randomString(10), randomString(count), randomString(20));
-            allproducts.add(product);
-            producer.send(new ProducerRecord<>(PRODUCT_TOPIC, i, product));
+        try (KafkaProducer<Long, Product> producer = new KafkaProducer<>(properties, Serdes.Long().serializer(),
+                productSerde.serializer())) {
+            for (long i = 0; i < count; i++) {
+                final Product product = new Product(randomString(10), randomString(count), randomString(20));
+                producer.send(new ProducerRecord<>(PRODUCT_TOPIC, i, product));
+            }
         }
-        return allproducts;
     }
 
-    private static List<Customer> generateCustomers(String bootstrapServers, String schemaRegistryUrl, int count) {
+    private static void generateCustomers(String bootstrapServers, String schemaRegistryUrl, int count) {
         final SpecificAvroSerde<Customer> customerSerde = createSerde(schemaRegistryUrl);
         final Properties producerProperties = new Properties();
         producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
-        final KafkaProducer<Long, Customer>
-                customerProducer =
-                new KafkaProducer<>(producerProperties, Serdes.Long().serializer(), customerSerde.serializer());
-        final List<Customer> allCustomers = new ArrayList<>();
-        final String [] genders = {"male", "female", "unknown"};
+        final String[] genders = {"male", "female", "unknown"};
         final Random random = new Random();
-        for(long i = 0; i < count; i++) {
-            final Customer customer = new Customer(randomString(10),
-                    genders[random.nextInt(genders.length)],
-                    randomString(20));
-            allCustomers.add(customer);
-            customerProducer.send(new ProducerRecord<>(CUSTOMER_TOPIC, i, customer));
+        try (KafkaProducer<Long, Customer> customerProducer = new KafkaProducer<>(producerProperties,
+                Serdes.Long().serializer(), customerSerde.serializer())) {
+            for (long i = 0; i < count; i++) {
+                final Customer customer = new Customer(randomString(10),
+                        genders[random.nextInt(genders.length)],
+                        randomString(20));
+                customerProducer.send(new ProducerRecord<>(CUSTOMER_TOPIC, i, customer));
+            }
         }
-        customerProducer.close();
-        return allCustomers;
     }
 
     private static <VT extends SpecificRecord> SpecificAvroSerde<VT> createSerde(final String schemaRegistryUrl) {
@@ -136,14 +126,12 @@ public class GlobalKTablesExampleDriver {
     }
 
     private static String randomString(int len) {
-        final StringBuilder b = new StringBuilder();
-
-        for(int i = 0; i < len; ++i) {
-            b.append("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".charAt(RANDOM.nextInt
-                    ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".length())));
+        final String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        final StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < len; ++i) {
+            builder.append(letters.charAt(RANDOM.nextInt(letters.length())));
         }
-
-        return b.toString();
+        return builder.toString();
     }
 
 }

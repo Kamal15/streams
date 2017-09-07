@@ -24,7 +24,7 @@ public class MapFunctionLambdaExample {
 
         textLines.mapValues(String::toUpperCase); // variant 1 with null / byte[] key
 
-        textLines.map((key, value) -> new KeyValue<>(value, value.toUpperCase())); // variant 2
+        textLines.map((key, value) -> new KeyValue<>(key, value.toUpperCase())); // variant 2
         final KStream<byte[], String> uppercasedTextLines = textLines.map(((key, value) ->
                 KeyValue.pair(key, value.toUpperCase()))); // variant 3
 
