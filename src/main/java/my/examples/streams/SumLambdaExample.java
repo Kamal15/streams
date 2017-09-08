@@ -27,7 +27,10 @@ public class SumLambdaExample {
         final KStream<Integer, Integer> numberStream = builder.stream(SumLambdaExampleDriver.NUMBERS_TOPIC);
         numberStream.filter((key, value) -> value % 2 != 0)
                 .groupBy((key, value) -> 1)
-                .reduce((v1, v2) -> v1 + v2, "sum") // try with aggregation
+                // Option 1 - using reduce
+                 .reduce((v1, v2) -> v1 + v2, "sum")
+                // Option 2 - using aggregate
+                // .aggregate(() -> 0, (key, value, agg) -> value + agg, Serdes.Integer(), "sum-agg")
                 .to(SumLambdaExampleDriver.ODD_SUM_TOPIC);
 
         final KafkaStreams streams = new KafkaStreams(builder, props);
