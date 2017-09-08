@@ -23,19 +23,19 @@ public class WordCountLambdaExample {
         Logger logger = LoggerFactory.getLogger(WordCountLambdaExample.class);
         logger.debug("Hello Streams!");
 
-        Properties streamsConfiguration = new Properties();
-        streamsConfiguration.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "wordcount-lambda-example");
-        streamsConfiguration.setProperty(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        streamsConfiguration.setProperty(StreamsConfig.KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        streamsConfiguration.setProperty(StreamsConfig.VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        streamsConfiguration.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 10 * 1000);
-        streamsConfiguration.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0);
+        Properties props = new Properties();
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "wordcount-lambda-example");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String());
+        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String());
+        props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 10 * 1000);
+        props.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0);
 
         final Serde<String> stringSerde = Serdes.String();
         final Serde<Long> longSerde = Serdes.Long();
 
         KStreamBuilder builder = new KStreamBuilder();
-        final KStream<String, String> textLines = builder.stream(stringSerde, stringSerde, "streams-file-input");
+        final KStream<String, String> textLines = builder.stream("streams-file-input");
 
         final KStream<String, Long> wordCounts = textLines
                 .flatMapValues(value -> Arrays.asList(value.toLowerCase().split("\\W+")))
@@ -45,10 +45,10 @@ public class WordCountLambdaExample {
 
         wordCounts.to(stringSerde, longSerde, "streams-wordcount-output");
 
-        final KafkaStreams streams = new KafkaStreams(builder, streamsConfiguration);
+        final KafkaStreams streams = new KafkaStreams(builder, props);
         streams.start();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> streams.close()));
+        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
 
         Thread.sleep(7000);
         final ReadOnlyKeyValueStore<String, Long> counts = streams.store("Counts", QueryableStoreTypes.<String, Long>keyValueStore());

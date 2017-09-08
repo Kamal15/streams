@@ -23,7 +23,7 @@ public class UserRegionLambdaExample {
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 10 * 1000);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, "/home/kamal/opensource/kafka_2.11-0.11.0.0/streams-state-data");
+        props.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/streams-data");
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         KStreamBuilder builder = new KStreamBuilder();
@@ -43,23 +43,21 @@ public class UserRegionLambdaExample {
             latch.countDown();
         }));
 
-        Thread queryThread = new Thread(() -> {
+        new Thread(() -> {
             while (true) {
                 try {
-                    Thread.sleep(20_000);
+                    Thread.sleep(10_000);
                     System.out.println("Printing the Key Value Pairs, State = " + streams.state().name());
                     final ReadOnlyKeyValueStore<String, Long> countsByRegion = streams.store("CountsByRegion", QueryableStoreTypes.keyValueStore());
-                    countsByRegion.all().forEachRemaining(keyValue -> {
-                        System.out.println(keyValue.key + "=" + keyValue.value);
-                    });
+                    countsByRegion.all().forEachRemaining(keyValue -> System.out.println(keyValue.key + "=" + keyValue.value));
                     System.out.println();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
 
             }
-        });
+        }).start();
+
         streams.start();
-        queryThread.start();
     }
 }
